@@ -25,7 +25,7 @@ const Footer = () => {
                     </div>
                 </div>
                 <div className="mt-8 border-t border-gray-700 pt-8 text-center text-sm text-gray-400">
-                    Food Mart - A frontend project by 5 Idiots
+                    Food Mart - Only Frontend Project. All rights reserved.
                 </div>
             </div>
         </footer>
