@@ -25,7 +25,7 @@ const Footer = () => {
                     </div>
                 </div>
                 <div className="mt-8 border-t border-gray-700 pt-8 text-center text-sm text-gray-400">
-                    Food Mart - A Frontend Project
+                    Food Mart - A frontend project for learning purposes. All rights reserved &copy; {new Date().getFullYear()}
                 </div>
             </div>
         </footer>
