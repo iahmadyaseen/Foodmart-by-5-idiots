@@ -21,7 +21,7 @@ export const About: React.FC = () => {
           Redefining Everyday Grocery Shopping
         </h1>
         <p className="text-base text-[#737373] leading-relaxed">
-          FOOD MART is a premier online food marketplace engineered to deliver farm-fresh fruits, organic vegetables, butcher-grade meats, authentic spices, bakery goods, and pantry staples directly to your kitchen.
+          FOOD MART is a premier online food marketplace engineered to deliver farm-fresh fruits, organic vegetables, butcher-grade meats, authentic spices and bakery goods directly to your kitchen.
         </p>
       </div>
 
