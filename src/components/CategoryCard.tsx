@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Category } from '../types';
 import { ArrowRight } from 'lucide-react';
 
@@ -10,7 +10,6 @@ interface CategoryCardProps {
 export const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
   return (
     <div className="group bg-white rounded-2xl border border-neutral-200/80 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
-      
       {/* Category Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
         <img
@@ -37,14 +36,13 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
         </div>
 
         <Link
-          to={`/category/${category.slug}`}
+          href={`/category/${category.slug}`}
           className="inline-flex items-center justify-between w-full px-4 py-2.5 rounded-xl font-bold text-sm bg-neutral-100 text-neutral-800 hover:bg-[#E8483F] hover:text-white transition-all duration-200 group/btn"
         >
           <span>View Items</span>
           <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
         </Link>
       </div>
-
     </div>
   );
 };

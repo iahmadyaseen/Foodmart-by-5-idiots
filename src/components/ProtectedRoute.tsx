@@ -1,5 +1,7 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+'use client';
+
+import React, { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { ShieldAlert } from 'lucide-react';
 
@@ -10,7 +12,18 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin = false }) => {
   const { user, loading, isAdmin } = useAuth();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push(`/login?from=${encodeURIComponent(pathname)}`);
+      } else if (requireAdmin && !isAdmin) {
+        router.push('/');
+      }
+    }
+  }, [user, loading, isAdmin, requireAdmin, router, pathname]);
 
   if (loading) {
     return (
@@ -21,7 +34,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return null;
   }
 
   if (requireAdmin && !isAdmin) {
@@ -32,9 +45,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
         </div>
         <h2 className="text-2xl font-black text-[#242424] mb-2">Access Denied</h2>
         <p className="text-sm text-[#737373] mb-6">
-          This area is restricted to authorized FOOD MART administrators ({'ay8880625@gmail.com'}) only.
+          This area is restricted to authorized FOOD MART administrators (ay8880625@gmail.com) only.
         </p>
-        <Navigate to="/" replace />
       </div>
     );
   }

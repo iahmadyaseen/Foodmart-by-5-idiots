@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef, useState } from 'react';
 import { Order } from '../types';
 import { Logo } from './Logo';

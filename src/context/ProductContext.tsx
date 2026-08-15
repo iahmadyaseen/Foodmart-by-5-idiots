@@ -1,8 +1,8 @@
+'use client';
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Product, CategorySlug } from '../types';
 import { INITIAL_PRODUCTS } from '../data/products';
-import { db, isFirebaseConfigured, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, getDocs, setDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 interface ProductContextType {
   products: Product[];
@@ -15,192 +15,165 @@ interface ProductContextType {
   deleteProduct: (id: string) => Promise<void>;
   toggleTopSelling: (id: string) => Promise<void>;
   randomizeTopSelling: (count?: number) => Promise<void>;
+  refreshProducts: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_PRODUCTS_KEY = 'foodmart_products_catalog';
-
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_PRODUCTS_KEY);
-    if (saved) {
-      try {
-        const parsed: Product[] = JSON.parse(saved);
-        // Merge any new products from INITIAL_PRODUCTS that are missing from localStorage
-        const existingIds = new Set(parsed.map(p => p.id));
-        const missingInitial = INITIAL_PRODUCTS.filter(p => !existingIds.has(p.id));
-        if (missingInitial.length > 0) {
-          const merged = [...parsed, ...missingInitial];
-          localStorage.setItem(LOCAL_STORAGE_PRODUCTS_KEY, JSON.stringify(merged));
-          return merged;
-        }
-        return parsed;
-      } catch (e) {
-        console.error('Failed to parse stored products catalog:', e);
-      }
-    }
-    return INITIAL_PRODUCTS;
-  });
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Sync catalog to local storage
-  const updateLocalProducts = (newList: Product[]) => {
-    setProducts(newList);
-    localStorage.setItem(LOCAL_STORAGE_PRODUCTS_KEY, JSON.stringify(newList));
-  };
-
-  // Fetch from Firestore if available
-  useEffect(() => {
-    const fetchFirestoreProducts = async () => {
-      if (isFirebaseConfigured() && db) {
-        try {
-          const colRef = collection(db, 'products');
-          const snap = await getDocs(colRef);
-          if (!snap.empty) {
-            const remoteProducts: Product[] = [];
-            snap.forEach(docSnap => {
-              remoteProducts.push(docSnap.data() as Product);
-            });
-            if (remoteProducts.length > 0) {
-              updateLocalProducts(remoteProducts);
-            }
-          } else {
-            // Seed initial products to Firestore
-            for (const prod of INITIAL_PRODUCTS) {
-              await setDoc(doc(db, 'products', prod.id), prod);
-            }
-          }
-        } catch (err) {
-          console.warn('Firestore products fetch error, using local catalog:', err);
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.products && data.products.length > 0) {
+          setProducts(data.products);
         }
       }
+    } catch (err) {
+      console.warn('API products fetch failed, using initial list:', err);
+    } finally {
       setLoading(false);
-    };
+    }
+  };
 
-    fetchFirestoreProducts();
+  useEffect(() => {
+    fetchProducts();
   }, []);
 
   const getProductById = (id: string) => {
-    return products.find(p => p.id === id);
+    return products.find((p) => p.id === id);
   };
 
   const getProductsByCategory = (categorySlug: CategorySlug) => {
-    return products.filter(p => p.category === categorySlug);
+    return products.filter((p) => p.category === categorySlug);
   };
 
-  // Decrease stock when order is placed
   const decreaseStock = async (items: { productId: string; quantity: number }[]) => {
-    const updatedList = products.map(product => {
-      const target = items.find(i => i.productId === product.id);
+    // Optimistic local update
+    const updatedList = products.map((product) => {
+      const target = items.find((i) => i.productId === product.id);
       if (!target) return product;
 
       const newQty = Math.max(0, product.stockQuantity - target.quantity);
       const newStatus = newQty === 0 ? 'out_of_stock' : newQty <= 5 ? 'low_stock' : 'in_stock';
 
-      const updatedProduct: Product = {
+      return {
         ...product,
         stockQuantity: newQty,
-        stockStatus: newStatus
+        stockStatus: newStatus as 'in_stock' | 'low_stock' | 'out_of_stock',
       };
-
-      // Sync individual item to Firestore if configured
-      if (isFirebaseConfigured() && db) {
-        setDoc(doc(db, 'products', product.id), updatedProduct, { merge: true }).catch(err =>
-          handleFirestoreError(err, OperationType.UPDATE, `products/${product.id}`)
-        );
-      }
-
-      return updatedProduct;
     });
 
-    updateLocalProducts(updatedList);
+    setProducts(updatedList);
+
+    // Call server API
+    try {
+      await fetch('/api/products/stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+    } catch (err) {
+      console.error('Stock decrement API error:', err);
+    }
   };
 
-  // Admin add product
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
-    const newId = `prod-${Date.now()}`;
-    const newProduct: Product = {
-      ...productData,
-      id: newId
-    };
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      });
 
-    const updated = [newProduct, ...products];
-    updateLocalProducts(updated);
-
-    if (isFirebaseConfigured() && db) {
-      try {
-        await setDoc(doc(db, 'products', newId), newProduct);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `products/${newId}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add product');
       }
-    }
 
-    return newProduct;
+      const data = await res.json();
+      const newProd: Product = data.product;
+      setProducts((prev) => [newProd, ...prev]);
+      return newProd;
+    } catch (err) {
+      console.error('Add product error:', err);
+      throw err;
+    }
   };
 
-  // Admin update product
   const updateProduct = async (id: string, updates: Partial<Product>) => {
-    const updated = products.map(p => (p.id === id ? { ...p, ...updates } : p));
-    updateLocalProducts(updated);
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
 
-    if (isFirebaseConfigured() && db) {
-      try {
-        await updateDoc(doc(db, 'products', id), updates);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update product');
       }
+
+      const data = await res.json();
+      setProducts((prev) => prev.map((p) => (p.id === id ? data.product : p)));
+    } catch (err) {
+      console.error('Update product error:', err);
+      throw err;
     }
   };
 
-  // Admin delete product
   const deleteProduct = async (id: string) => {
-    const updated = products.filter(p => p.id !== id);
-    updateLocalProducts(updated);
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+      });
 
-    if (isFirebaseConfigured() && db) {
-      try {
-        await deleteDoc(doc(db, 'products', id));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `products/${id}`);
+      if (!res.ok) {
+        throw new Error('Failed to delete product');
       }
+
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error('Delete product error:', err);
+      throw err;
     }
   };
 
-  // Admin toggle top selling status for a product
   const toggleTopSelling = async (id: string) => {
-    const updated = products.map(p => (p.id === id ? { ...p, isTopSelling: !p.isTopSelling } : p));
-    updateLocalProducts(updated);
+    try {
+      const res = await fetch('/api/products/top-selling', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle', productId: id }),
+      });
 
-    if (isFirebaseConfigured() && db) {
-      const target = updated.find(p => p.id === id);
-      if (target) {
-        setDoc(doc(db, 'products', id), target, { merge: true }).catch(err =>
-          handleFirestoreError(err, OperationType.UPDATE, `products/${id}`)
+      if (res.ok) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, isTopSelling: !p.isTopSelling } : p))
         );
       }
+    } catch (err) {
+      console.error('Toggle top selling error:', err);
     }
   };
 
-  // Admin randomize top selling products selection (picks count random products)
   const randomizeTopSelling = async (count = 8) => {
-    if (products.length === 0) return;
-    
-    // Pick random items across categories if possible
-    const shuffled = [...products].sort(() => 0.5 - Math.random());
-    const selectedIds = new Set(shuffled.slice(0, Math.min(count, products.length)).map(p => p.id));
+    try {
+      const res = await fetch('/api/products/top-selling', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'randomize', count }),
+      });
 
-    const updated = products.map(p => ({
-      ...p,
-      isTopSelling: selectedIds.has(p.id)
-    }));
-
-    updateLocalProducts(updated);
-
-    if (isFirebaseConfigured() && db) {
-      for (const p of updated) {
-        setDoc(doc(db, 'products', p.id), p, { merge: true }).catch(() => {});
+      if (res.ok) {
+        await fetchProducts();
       }
+    } catch (err) {
+      console.error('Randomize top selling error:', err);
     }
   };
 
@@ -216,7 +189,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateProduct,
         deleteProduct,
         toggleTopSelling,
-        randomizeTopSelling
+        randomizeTopSelling,
+        refreshProducts: fetchProducts,
       }}
     >
       {children}

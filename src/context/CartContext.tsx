@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { CartItem, Product } from '../types';
 
@@ -22,6 +24,7 @@ const STANDARD_DELIVERY_FEE = 200;
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
+    if (typeof window === 'undefined') return [];
     const saved = localStorage.getItem(LOCAL_STORAGE_CART_KEY);
     if (saved) {
       try {
@@ -34,7 +37,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_CART_KEY, JSON.stringify(items));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_CART_KEY, JSON.stringify(items));
+    }
   }, [items]);
 
   const addToCart = (product: Product, quantity: number = 1): boolean => {
@@ -44,8 +49,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let success = true;
 
-    setItems(prevItems => {
-      const existingIndex = prevItems.findIndex(i => i.product.id === product.id);
+    setItems((prevItems) => {
+      const existingIndex = prevItems.findIndex((i) => i.product.id === product.id);
 
       if (existingIndex > -1) {
         const currentQty = prevItems[existingIndex].quantity;
@@ -59,7 +64,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = [...prevItems];
         updated[existingIndex] = {
           ...updated[existingIndex],
-          quantity: newQty
+          quantity: newQty,
         };
         return updated;
       } else {
@@ -80,8 +85,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    setItems(prevItems =>
-      prevItems.map(item => {
+    setItems((prevItems) =>
+      prevItems.map((item) => {
         if (item.product.id === productId) {
           const clampedQty = Math.min(quantity, item.product.stockQuantity);
           return { ...item, quantity: clampedQty };
@@ -92,7 +97,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeFromCart = (productId: string) => {
-    setItems(prevItems => prevItems.filter(item => item.product.id !== productId));
+    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
   };
 
   const clearCart = () => {
@@ -126,7 +131,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subtotal,
         discount,
         deliveryFee,
-        total
+        total,
       }}
     >
       {children}

@@ -1,5 +1,5 @@
 # ==========================================================
-# FOOD MART - ONLINE GROCERY STORE APPLICATION REQUIREMENTS
+# FOOD MART - ONLINE GROCERY STORE APPLICATION (NEXT.JS + PRISMA ORM & NEONDB POSTGRESQL)
 # Developed by: TEAM 5 IDIOTS
 # ==========================================================
 
@@ -7,42 +7,32 @@
 Node.js >= 18.0.0
 npm >= 9.0.0
 
-# 2. CORE DEPENDENCIES
-react >= 19.0.1
-react-dom >= 19.0.1
-react-router-dom >= 7.18.2
+# 2. CORE ARCHITECTURE & DEPENDENCIES
+next >= 15.0.0
+react >= 19.0.0
+react-dom >= 19.0.0
+prisma >= 5.22.0
+@prisma/client >= 5.22.0
+bcryptjs >= 3.0.2
+jose >= 5.9.6
 lucide-react >= 0.546.0
 motion >= 12.23.24
-firebase >= 12.17.1
 html2canvas >= 1.4.1
 jspdf >= 4.2.1
-@google/genai >= 2.4.0
-dotenv >= 17.2.3
-express >= 4.21.2
 
-# 3. BUILD TOOLS & DEV DEPENDENCIES
-vite >= 6.2.3
-@vitejs/plugin-react >= 5.0.4
-@tailwindcss/vite >= 4.1.14
-tailwindcss >= 4.1.14
-typescript >= 5.8.2
-tsx >= 4.21.0
-esbuild >= 0.25.0
-@types/node >= 22.14.0
-@types/express >= 4.17.21
+# 3. KEY FEATURES
+- Next.js App Router Architecture with React Server & Client Components
+- Prisma ORM Database with strict isolation (Zero Data Leaks)
+- Full Grocery Catalog across 10 Primary Categories
+- Customer Most Purchased / Top Selling Products with Admin Controls
+- Shopping Cart & Multi-Step Checkout
+- PDF Invoice / Receipt Generator
+- Protected Customer Order History & Profile
+- Admin Control Dashboard (ay8880625@gmail.com) for Orders, Catalog & Messages
 
-# 4. KEY APP FEATURES
-- Full Grocery Catalog across 10+ Categories (Fruits, Vegetables, Dairy, Bakery & Cakes, Drinks, Snacks, Meat, Pantry, Frozen, Household)
-- Customer Most Purchased / Top Selling Products Section with Admin Shuffle Controls
-- Randomized 20 Items Catalog Discovery Mode
-- Cart Management & Local / Firestore Cart Persistence
-- User Authentication (Login, Signup, Admin Role - ay8880625@gmail.com)
-- Order Checkout with Delivery Address & Phone details
-- Automated Order Receipt Generator (PDF download / Printable View)
-- Admin Dashboard for Stock Management, Order Processing, and Customer Messages
-
-# 5. COMMANDS
+# 4. COMMANDS
 # Install dependencies: npm install
+# Initialize DB:        npm run db:push
+# Seed initial data:    npm run db:seed
 # Start dev server:     npm run dev
-# Build production:     npm run build
-# Check types:          npm run lint
+# Production build:     npm run build

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useEffect } from 'react';
 
 type Theme = 'light';
@@ -11,8 +13,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   useEffect(() => {
-    localStorage.removeItem('foodmart_theme');
-    document.documentElement.classList.remove('dark');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('foodmart_theme');
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
   const toggleTheme = () => {

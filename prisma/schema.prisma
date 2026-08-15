@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  password    String
+  role        String   @default("customer") // "customer" | "admin"
+  photoURL    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastLoginAt DateTime @default(now())
+  orders      Order[]
+}
+
+model Category {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  name          String
+  description   String
+  image         String
+  subcategories String?   // JSON string array
+  productCount  Int       @default(0)
+  products      Product[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Product {
+  id            String      @id @default(cuid())
+  sku           String      @unique
+  name          String
+  categorySlug  String
+  categoryName  String
+  subcategory   String?
+  price         Float
+  originalPrice Float?
+  sale          Boolean     @default(false)
+  unit          String
+  stockQuantity Int         @default(0)
+  stockStatus   String      @default("in_stock") // "in_stock" | "low_stock" | "out_of_stock"
+  image         String
+  rating        Float       @default(5.0)
+  reviewCount   Int         @default(0)
+  description   String
+  isTopSelling  Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  category      Category?   @relation(fields: [categorySlug], references: [slug])
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  userId            String?
+  customerName      String
+  customerEmail     String
+  phone             String
+  address           String
+  city              String
+  postalCode        String
+  notes             String?
+  subtotal          Float
+  discount          Float       @default(0)
+  deliveryFee       Float       @default(0)
+  total             Float
+  paymentMethod     String      @default("cod") // "cod" | "card"
+  paymentStatus     String      @default("pending") // "pending" | "paid" | "failed"
+  orderStatus       String      @default("pending") // "pending" | "confirmed" | "shipped" | "delivered" | "cancelled"
+  estimatedDelivery String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String?
+  sku        String
+  name       String
+  price      Float
+  unit       String
+  quantity   Int
+  totalPrice Float
+  image      String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  name      String
+  avatar    String
+  rating    Float
+  review    String
+  location  String?
+  createdAt DateTime @default(now())
+}

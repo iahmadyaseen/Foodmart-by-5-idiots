@@ -1,8 +1,9 @@
+'use client';
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { UserProfile, UserRole } from '../types';
-import { auth, db, isFirebaseConfigured, ADMIN_EMAIL, handleFirestoreError, OperationType } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+
+export const ADMIN_EMAIL = 'ay8880625@gmail.com';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -21,181 +22,187 @@ const LOCAL_STORAGE_USER_KEY = 'foodmart_user_profile';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window === 'undefined') return null;
     const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
     return saved ? JSON.parse(saved) : null;
   });
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Sync state to local storage
   const saveUserToState = (profile: UserProfile | null) => {
     setUser(profile);
-    if (profile) {
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(profile));
-    } else {
-      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    }
-  };
-
-  // Helper to determine role
-  const determineRole = (email: string, requestedRole?: UserRole): UserRole => {
-    if (email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
-      return 'admin';
-    }
-    return requestedRole || 'customer';
-  };
-
-  // Save profile to Firestore if configured
-  const persistProfileToFirestore = async (profile: UserProfile) => {
-    if (isFirebaseConfigured() && db) {
-      try {
-        const userRef = doc(db, 'users', profile.userId);
-        await setDoc(userRef, profile, { merge: true });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${profile.userId}`);
+    if (typeof window !== 'undefined') {
+      if (profile) {
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(profile));
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
       }
     }
   };
 
+  // Check current session from /api/auth/me on mount
   useEffect(() => {
-    if (isFirebaseConfigured() && auth) {
-      const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-        if (fbUser) {
-          const role = determineRole(fbUser.email || '');
-          let profile: UserProfile = {
-            userId: fbUser.uid,
-            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
-            email: fbUser.email || '',
-            photoURL: fbUser.photoURL || undefined,
-            role,
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString()
-          };
-
-          if (db) {
-            try {
-              const userRef = doc(db, 'users', fbUser.uid);
-              const docSnap = await getDoc(userRef);
-              if (docSnap.exists()) {
-                const existingData = docSnap.data() as UserProfile;
-                profile = {
-                  ...existingData,
-                  role, // Always ensure correct role for admin email
-                  lastLoginAt: new Date().toISOString()
-                };
-                await updateDoc(userRef, { lastLoginAt: profile.lastLoginAt, role });
-              } else {
-                await setDoc(userRef, profile);
-              }
-            } catch (e) {
-              console.warn('Firestore user fetch failed, using memory auth state:', e);
-            }
-          }
-          saveUserToState(profile);
-        } else {
-          // Keep existing local demo user if non-firebase login was used, or clear if signed out
-          const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
-          if (!saved) {
-            saveUserToState(null);
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            const formatted: UserProfile = {
+              userId: data.user.id,
+              name: data.user.name,
+              email: data.user.email,
+              photoURL: data.user.photoURL || undefined,
+              role: data.user.role as UserRole,
+              createdAt: data.user.createdAt,
+              lastLoginAt: data.user.lastLoginAt,
+            };
+            saveUserToState(formatted);
+          } else {
+            // Keep cached user if offline or fallback
           }
         }
+      } catch (err) {
+        console.warn('Session check warning:', err);
+      } finally {
         setLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      setLoading(false);
-    }
+      }
+    };
+
+    checkSession();
   }, []);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     setLoading(true);
-    const role = determineRole(email);
-    
-    if (isFirebaseConfigured() && auth && password) {
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        return true;
-      } catch (err) {
-        console.warn('Firebase login failed, trying fallback demo login:', err);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Login failed');
       }
+
+      const data = await res.json();
+      const profile: UserProfile = {
+        userId: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        photoURL: data.user.photoURL || undefined,
+        role: data.user.role as UserRole,
+        createdAt: data.user.createdAt,
+        lastLoginAt: data.user.lastLoginAt,
+      };
+
+      saveUserToState(profile);
+      setLoading(false);
+      return true;
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoading(false);
+      throw err;
     }
-
-    // Demo/Local login fallback
-    const mockProfile: UserProfile = {
-      userId: `user-${Date.now()}`,
-      name: email.toLowerCase().includes('admin') ? 'FOOD MART Owner' : email.split('@')[0],
-      email: email.trim(),
-      role,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString()
-    };
-
-    await persistProfileToFirestore(mockProfile);
-    saveUserToState(mockProfile);
-    setLoading(false);
-    return true;
   };
 
   const signup = async (name: string, email: string, password?: string): Promise<boolean> => {
     setLoading(true);
-    const role = determineRole(email);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    if (isFirebaseConfigured() && auth && password) {
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        const profile: UserProfile = {
-          userId: cred.user.uid,
-          name: name.trim(),
-          email: email.trim(),
-          role,
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString()
-        };
-        await persistProfileToFirestore(profile);
-        saveUserToState(profile);
-        setLoading(false);
-        return true;
-      } catch (err) {
-        console.warn('Firebase signup error, proceeding with local profile:', err);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Signup failed');
       }
+
+      const data = await res.json();
+      const profile: UserProfile = {
+        userId: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        photoURL: data.user.photoURL || undefined,
+        role: data.user.role as UserRole,
+        createdAt: data.user.createdAt,
+        lastLoginAt: data.user.lastLoginAt,
+      };
+
+      saveUserToState(profile);
+      setLoading(false);
+      return true;
+    } catch (err) {
+      console.error('Signup error:', err);
+      setLoading(false);
+      throw err;
     }
-
-    const mockProfile: UserProfile = {
-      userId: `user-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim(),
-      role,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString()
-    };
-
-    await persistProfileToFirestore(mockProfile);
-    saveUserToState(mockProfile);
-    setLoading(false);
-    return true;
   };
 
   const demoLogin = async (asAdmin: boolean = false): Promise<boolean> => {
-    const email = asAdmin ? ADMIN_EMAIL : 'demo@foodmart.com';
-    const name = asAdmin ? 'FOOD MART Owner' : 'Janger Customer';
-    return await signup(name, email);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asAdmin }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Demo login failed');
+      }
+
+      const data = await res.json();
+      const profile: UserProfile = {
+        userId: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        photoURL: data.user.photoURL || undefined,
+        role: data.user.role as UserRole,
+        createdAt: data.user.createdAt,
+        lastLoginAt: data.user.lastLoginAt,
+      };
+
+      saveUserToState(profile);
+      setLoading(false);
+      return true;
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setLoading(false);
+      throw err;
+    }
   };
 
   const logout = async () => {
-    if (isFirebaseConfigured() && auth) {
-      try {
-        await firebaseSignOut(auth);
-      } catch (e) {
-        console.error('Signout error:', e);
-      }
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error:', e);
     }
     saveUserToState(null);
   };
 
   const updateProfileData = async (data: Partial<UserProfile>) => {
     if (!user) return;
-    const updated = { ...user, ...data };
-    saveUserToState(updated);
-    await persistProfileToFirestore(updated);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const resData = await res.json();
+        const updated: UserProfile = {
+          ...user,
+          ...resData.user,
+        };
+        saveUserToState(updated);
+      }
+    } catch (err) {
+      console.error('Update profile error:', err);
+    }
   };
 
   const isAdmin = user?.role === 'admin' || user?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
@@ -210,7 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         demoLogin,
         logout,
-        updateProfileData
+        updateProfileData,
       }}
     >
       {children}

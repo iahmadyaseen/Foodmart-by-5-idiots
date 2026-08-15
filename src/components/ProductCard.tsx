@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { Star, ShoppingCart, Check, AlertCircle, Flame } from 'lucide-react';
@@ -29,9 +31,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <div className="group bg-white rounded-2xl border border-neutral-200/80 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative">
-      
       {/* Top Image Container */}
-      <Link to={`/product/${product.id}`} className="relative aspect-square overflow-hidden bg-neutral-100 block">
+      <Link href={`/product/${product.id}`} className="relative aspect-square overflow-hidden bg-neutral-100 block">
         <img
           src={product.image}
           alt={product.name}
@@ -80,7 +81,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#E8483F]">
             {product.categoryName}
           </span>
-          <Link to={`/product/${product.id}`}>
+          <Link href={`/product/${product.id}`}>
             <h3 className="text-base font-bold text-neutral-900 line-clamp-1 hover:text-[#E8483F] transition-colors mt-0.5">
               {product.name}
             </h3>
@@ -129,7 +130,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             )}
           </button>
         </div>
-
       </div>
     </div>
   );

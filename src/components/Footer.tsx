@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Logo } from './Logo';
 import { Mail, Phone, MapPin, Heart, ShieldCheck, Truck, Clock } from 'lucide-react';
 
@@ -7,7 +7,6 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-[#FFF4E8] text-[#242424] pt-16 pb-8 border-t border-[#F1E4D8]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
         {/* Value Proposition Banners */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-12 mb-12 border-b border-[#F1E4D8]">
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#F1E4D8]">
@@ -53,7 +52,6 @@ export const Footer: React.FC = () => {
 
         {/* Footer Navigation Columns */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pb-12 border-b border-[#F1E4D8]">
-          
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
             <Logo size="lg" />
@@ -81,19 +79,19 @@ export const Footer: React.FC = () => {
             <h3 className="text-sm font-black text-[#242424] uppercase tracking-wider mb-4">Quick Links</h3>
             <ul className="space-y-2.5 text-sm text-[#737373]">
               <li>
-                <Link to="/" className="hover:text-[#E8483F] transition-colors">Home</Link>
+                <Link href="/" className="hover:text-[#E8483F] transition-colors">Home</Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-[#E8483F] transition-colors">About Us</Link>
+                <Link href="/about" className="hover:text-[#E8483F] transition-colors">About Us</Link>
               </li>
               <li>
-                <Link to="/items" className="hover:text-[#E8483F] transition-colors">Items & Categories</Link>
+                <Link href="/items" className="hover:text-[#E8483F] transition-colors">Items & Categories</Link>
               </li>
               <li>
-                <Link to="/reviews" className="hover:text-[#E8483F] transition-colors">Customer Reviews</Link>
+                <Link href="/reviews" className="hover:text-[#E8483F] transition-colors">Customer Reviews</Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-[#E8483F] transition-colors">Contact Us</Link>
+                <Link href="/contact" className="hover:text-[#E8483F] transition-colors">Contact Us</Link>
               </li>
             </ul>
           </div>
@@ -103,16 +101,16 @@ export const Footer: React.FC = () => {
             <h3 className="text-sm font-black text-[#242424] uppercase tracking-wider mb-4">Customer Account</h3>
             <ul className="space-y-2.5 text-sm text-[#737373]">
               <li>
-                <Link to="/profile" className="hover:text-[#E8483F] transition-colors">My Account</Link>
+                <Link href="/profile" className="hover:text-[#E8483F] transition-colors">My Account</Link>
               </li>
               <li>
-                <Link to="/orders" className="hover:text-[#E8483F] transition-colors">My Orders</Link>
+                <Link href="/orders" className="hover:text-[#E8483F] transition-colors">My Orders</Link>
               </li>
               <li>
-                <Link to="/cart" className="hover:text-[#E8483F] transition-colors">Shopping Cart</Link>
+                <Link href="/cart" className="hover:text-[#E8483F] transition-colors">Shopping Cart</Link>
               </li>
               <li>
-                <Link to="/checkout" className="hover:text-[#E8483F] transition-colors">Checkout</Link>
+                <Link href="/checkout" className="hover:text-[#E8483F] transition-colors">Checkout</Link>
               </li>
             </ul>
           </div>
@@ -122,20 +120,19 @@ export const Footer: React.FC = () => {
             <h3 className="text-sm font-black text-[#242424] uppercase tracking-wider mb-4">Support & Legal</h3>
             <ul className="space-y-2.5 text-sm text-[#737373]">
               <li>
-                <Link to="/contact" className="hover:text-[#E8483F] transition-colors">Help Center</Link>
+                <Link href="/contact" className="hover:text-[#E8483F] transition-colors">Help Center</Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-[#E8483F] transition-colors">Delivery FAQ</Link>
+                <Link href="/about" className="hover:text-[#E8483F] transition-colors">Delivery FAQ</Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-[#E8483F] transition-colors">Privacy Policy</Link>
+                <Link href="/contact" className="hover:text-[#E8483F] transition-colors">Privacy Policy</Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-[#E8483F] transition-colors">Terms of Service</Link>
+                <Link href="/contact" className="hover:text-[#E8483F] transition-colors">Terms of Service</Link>
               </li>
             </ul>
           </div>
-
         </div>
 
         {/* BOTTOM COPYRIGHT & TEAM MANDATE */}
@@ -145,7 +142,6 @@ export const Footer: React.FC = () => {
             Developed by: <span className="text-[#E8483F] font-black">TEAM 5 IDIOTS</span>
           </p>
         </div>
-
       </div>
     </footer>
   );
