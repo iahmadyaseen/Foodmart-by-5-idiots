@@ -139,7 +139,7 @@ export const Footer: React.FC = () => {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#737373]">
           <p>© 2026 FOOD MART. All rights reserved.</p>
           <p className="font-semibold text-[#242424] bg-white px-4 py-2 rounded-full border border-[#F1E4D8] shadow-xs tracking-wide">
-            Developed by: <span className="text-[#E8483F] font-black">TEAM 5-IDIOTS</span>
+            Developed by: <span className="text-[#E8483F] font-black">TEAM 5 IDIOTS</span>
           </p>
         </div>
       </div>
