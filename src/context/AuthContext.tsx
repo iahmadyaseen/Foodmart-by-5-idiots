@@ -3,12 +3,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { UserProfile, UserRole } from '../types';
 
-export const ADMIN_EMAIL = 'ay8880625@gmail.com';
+export const SUPER_ADMIN_EMAIL = 'ay8880625@gmail.com';
+export const ADMIN_EMAIL = SUPER_ADMIN_EMAIL;
 
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (name: string, email: string, password?: string) => Promise<boolean>;
   demoLogin: (asAdmin?: boolean) => Promise<boolean>;
@@ -205,7 +207,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isAdmin = user?.role === 'admin' || user?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isSuperAdmin = user?.role === 'super_admin' || user?.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+  const isAdmin = isSuperAdmin || user?.role === 'admin';
 
   return (
     <AuthContext.Provider
@@ -213,6 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         isAdmin,
+        isSuperAdmin,
         login,
         signup,
         demoLogin,

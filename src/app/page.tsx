@@ -10,7 +10,6 @@ import { ProductCard } from '@/components/ProductCard';
 import { INITIAL_REVIEWS } from '@/data/reviews';
 import {
   ArrowRight,
-  Sparkles,
   ShoppingBag,
   Leaf,
   Star,
@@ -43,8 +42,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Text */}
             <div className="space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#E8483F]/10 text-[#E8483F] font-bold text-xs uppercase tracking-wider">
-                <Sparkles className="w-4 h-4" />
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#E8483F]/10 text-[#E8483F] font-bold text-xs uppercase tracking-wider">
                 #1 Fresh Grocery Marketplace
               </div>
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Logo } from '@/components/Logo';
 import { User, Mail, Lock, AlertCircle } from 'lucide-react';
+import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 
 export default function SignupPage() {
   const { signup } = useAuth();
@@ -60,6 +61,17 @@ export default function SignupPage() {
             <span>{error}</span>
           </div>
         )}
+
+        {/* Google Identity Sign-Up */}
+        <GoogleSignInButton redirectTo="/" />
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-neutral-200" />
+          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+            Or with email
+          </span>
+          <div className="flex-1 h-px bg-neutral-200" />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

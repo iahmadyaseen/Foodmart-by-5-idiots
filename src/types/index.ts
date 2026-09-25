@@ -46,7 +46,7 @@ export interface CartItem {
   quantity: number;
 }
 
-export type UserRole = 'customer' | 'admin';
+export type UserRole = 'customer' | 'admin' | 'super_admin';
 
 export interface UserProfile {
   userId: string;

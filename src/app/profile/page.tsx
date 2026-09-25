@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { Check, LogOut, PackageCheck } from 'lucide-react';
+import { Check, LogOut, PackageCheck, Crown, ShieldCheck } from 'lucide-react';
 
 function ProfileContent() {
-  const { user, updateProfileData, logout, isAdmin } = useAuth();
+  const { user, updateProfileData, logout, isAdmin, isSuperAdmin } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState(user?.name || '');
@@ -33,7 +33,7 @@ function ProfileContent() {
       <div>
         <span className="text-xs font-bold text-[#E8483F] uppercase tracking-wider">Account Settings</span>
         <h1 className="text-3xl font-black text-[#242424] tracking-tight mt-1">
-          Customer Profile
+          User Profile
         </h1>
       </div>
 
@@ -46,9 +46,19 @@ function ProfileContent() {
           <div>
             <h2 className="text-xl font-bold text-[#242424]">{user?.name}</h2>
             <p className="text-xs text-[#737373]">{user?.email}</p>
-            {isAdmin && (
-              <span className="inline-block mt-1.5 px-3 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase">
-                Admin / Owner Role
+            {isSuperAdmin ? (
+              <span className="inline-flex items-center gap-1 mt-1.5 px-3 py-0.5 rounded-full bg-amber-400 text-neutral-900 text-[10px] font-extrabold uppercase shadow-xs">
+                <Crown className="w-3 h-3 fill-neutral-900" />
+                Super Admin (Owner)
+              </span>
+            ) : isAdmin ? (
+              <span className="inline-flex items-center gap-1 mt-1.5 px-3 py-0.5 rounded-full bg-red-100 text-[#E8483F] text-[10px] font-bold uppercase">
+                <ShieldCheck className="w-3 h-3" />
+                Store Admin
+              </span>
+            ) : (
+              <span className="inline-block mt-1.5 px-3 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-[10px] font-bold uppercase">
+                Customer Account
               </span>
             )}
           </div>

@@ -100,8 +100,8 @@ async function main() {
     });
   }
 
-  // 4. Seed Admin & Demo Customer Accounts
-  console.log('Seeding users (Admin & Customer)...');
+  // 4. Seed Super Admin & Demo Customer Accounts
+  console.log('Seeding users (Super Admin & Customer)...');
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
   const demoPasswordHash = await bcrypt.hash('demo123', 10);
 
@@ -110,15 +110,15 @@ async function main() {
   await prisma.user.upsert({
     where: { email: adminEmail },
     update: {
-      name: 'FOOD MART Owner',
-      role: 'admin',
+      name: 'FOOD MART Super Admin',
+      role: 'super_admin',
     },
     create: {
       id: 'admin-user-01',
       email: adminEmail,
-      name: 'FOOD MART Owner',
+      name: 'FOOD MART Super Admin',
       password: adminPasswordHash,
-      role: 'admin',
+      role: 'super_admin',
     },
   });
 

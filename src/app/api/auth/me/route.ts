@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, isSuperAdmin } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ user: null });
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: session.userId },
       select: {
         id: true,
@@ -21,6 +21,38 @@ export async function GET(req: NextRequest) {
         lastLoginAt: true,
       },
     });
+
+    if (user) {
+      if (isSuperAdmin(user.email) && user.role !== 'super_admin') {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'super_admin' },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            photoURL: true,
+            createdAt: true,
+            lastLoginAt: true,
+          },
+        });
+      } else if (!isSuperAdmin(user.email) && user.role === 'super_admin') {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'customer' },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            photoURL: true,
+            createdAt: true,
+            lastLoginAt: true,
+          },
+        });
+      }
+    }
 
     return NextResponse.json({ user });
   } catch (error) {

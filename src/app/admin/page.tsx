@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/context/ProductContext';
 import { orderService } from '@/services/orderService';
 import { contactService } from '@/services/contactService';
+import { userService, AdminUserListItem } from '@/services/userService';
 import { Order, OrderStatus, ContactMessage, CategorySlug } from '@/types';
 import { CATEGORIES } from '@/data/categories';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -20,16 +21,29 @@ import {
   RefreshCw,
   Flame,
   Shuffle,
+  Users,
+  Crown,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Search,
+  UserCheck,
+  UserX,
+  Send,
 } from 'lucide-react';
 
 function AdminDashboardContent() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const { products, addProduct, deleteProduct, toggleTopSelling, randomizeTopSelling, refreshProducts } = useProducts();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'messages'>('orders');
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'messages' | 'users'>('orders');
   const [loading, setLoading] = useState(true);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [roleActionStatus, setRoleActionStatus] = useState<{ message: string; isError?: boolean } | null>(null);
 
   // New product form modal state
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -54,12 +68,51 @@ function AdminDashboardContent() {
 
   const loadAdminData = async () => {
     setLoading(true);
-    const fetchedOrders = await orderService.getAllOrders();
-    const fetchedMessages = await contactService.getAllMessages();
+    const [fetchedOrders, fetchedMessages, fetchedUsers] = await Promise.all([
+      orderService.getAllOrders(),
+      contactService.getAllMessages(),
+      userService.getAllUsers(),
+    ]);
     setOrders(fetchedOrders);
     setMessages(fetchedMessages);
+    setUsers(fetchedUsers);
     await refreshProducts();
     setLoading(false);
+  };
+
+  const handleToggleUserRole = async (targetUser: AdminUserListItem) => {
+    if (!isSuperAdmin) {
+      setRoleActionStatus({
+        message: 'Only Super Admin (ay8880625@gmail.com) is authorized to promote or revoke admin roles.',
+        isError: true,
+      });
+      return;
+    }
+
+    const newRole = targetUser.role === 'admin' ? 'customer' : 'admin';
+    setUpdatingUserId(targetUser.id);
+    setRoleActionStatus(null);
+
+    const result = await userService.updateUserRole(targetUser.id, newRole);
+    if (result.success) {
+      setRoleActionStatus({
+        message: `Successfully changed ${targetUser.email} role to ${newRole === 'admin' ? 'Store Admin' : 'Customer'}.`,
+        isError: false,
+      });
+      const updatedUsers = await userService.getAllUsers();
+      setUsers(updatedUsers);
+    } else {
+      setRoleActionStatus({
+        message: result.error || 'Failed to update user role',
+        isError: true,
+      });
+    }
+    setUpdatingUserId(null);
+  };
+
+  const handleMarkMessageRead = async (id: string) => {
+    await contactService.markRead(id);
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
   };
 
   useEffect(() => {
@@ -90,20 +143,34 @@ function AdminDashboardContent() {
     });
   };
 
+  const filteredUsers = users.filter((u) => {
+    if (!userSearchQuery.trim()) return true;
+    const query = userSearchQuery.toLowerCase().trim();
+    return u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query);
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* ADMIN HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white p-8 rounded-3xl shadow-xl">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold text-xs uppercase">
-            <ShieldCheck className="w-4 h-4" />
-            Owner Portal • {user?.email}
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full font-bold text-xs uppercase tracking-wider ${
+              isSuperAdmin
+                ? 'bg-amber-400 text-neutral-900 shadow-md shadow-amber-400/20'
+                : 'bg-amber-500/20 text-amber-400'
+            }`}
+          >
+            {isSuperAdmin ? <Crown className="w-4 h-4 fill-neutral-900" /> : <ShieldCheck className="w-4 h-4" />}
+            {isSuperAdmin ? 'Super Admin (Sole Owner)' : 'Store Admin'} • {user?.email}
           </div>
           <h1 className="text-3xl font-black uppercase tracking-tight">
             FOOD MART Control Dashboard
           </h1>
           <p className="text-xs text-neutral-400">
-            Real-time management for customer orders, catalog stock, and inquiry notifications powered by Prisma ORM.
+            {isSuperAdmin
+              ? 'Executive control dashboard. Only you (ay8880625@gmail.com) can designate other accounts as store administrators.'
+              : 'Store administrator control panel for customer orders, inventory stock, and incoming inquiries.'}
           </p>
         </div>
 
@@ -117,56 +184,69 @@ function AdminDashboardContent() {
       </div>
 
       {/* KPI METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
-          <div className="p-4 bg-[#E8483F]/10 text-[#E8483F] rounded-2xl">
-            <DollarSign className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white p-5 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
+          <div className="p-3.5 bg-[#E8483F]/10 text-[#E8483F] rounded-2xl">
+            <DollarSign className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-[#737373] uppercase">Total Sales Revenue</p>
-            <p className="text-2xl font-black text-[#242424]">Rs. {totalRevenue.toLocaleString()}</p>
+            <p className="text-[11px] font-bold text-[#737373] uppercase">Sales Revenue</p>
+            <p className="text-xl font-black text-[#242424]">Rs. {totalRevenue.toLocaleString()}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
-          <div className="p-4 bg-amber-500/10 text-amber-600 rounded-2xl">
-            <ShoppingBag className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
+          <div className="p-3.5 bg-amber-500/10 text-amber-600 rounded-2xl">
+            <ShoppingBag className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-[#737373] uppercase">Total Customer Orders</p>
-            <p className="text-2xl font-black text-[#242424]">{totalOrdersCount}</p>
-            <p className="text-[10px] text-amber-600 font-bold">{pendingOrdersCount} pending fulfillment</p>
+            <p className="text-[11px] font-bold text-[#737373] uppercase">Customer Orders</p>
+            <p className="text-xl font-black text-[#242424]">{totalOrdersCount}</p>
+            <p className="text-[10px] text-amber-600 font-bold">{pendingOrdersCount} pending</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
-          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl">
-            <Package className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
+          <div className="p-3.5 bg-emerald-500/10 text-emerald-600 rounded-2xl">
+            <Package className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-[#737373] uppercase">Store Catalog Items</p>
-            <p className="text-2xl font-black text-[#242424]">{products.length}</p>
-            <p className="text-[10px] text-emerald-600 font-bold">10 Primary Categories</p>
+            <p className="text-[11px] font-bold text-[#737373] uppercase">Catalog Items</p>
+            <p className="text-xl font-black text-[#242424]">{products.length}</p>
+            <p className="text-[10px] text-emerald-600 font-bold">10 Categories</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
-          <div className="p-4 bg-blue-500/10 text-blue-600 rounded-2xl">
-            <Mail className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
+          <div className="p-3.5 bg-blue-500/10 text-blue-600 rounded-2xl">
+            <Mail className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-[#737373] uppercase">Inquiry Messages</p>
-            <p className="text-2xl font-black text-[#242424]">{messages.length}</p>
+            <p className="text-[11px] font-bold text-[#737373] uppercase">Inquiries</p>
+            <p className="text-xl font-black text-[#242424]">{messages.length}</p>
             <p className="text-[10px] text-blue-600 font-bold">{unreadMessagesCount} unread</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-[#F1E4D8] shadow-xs flex items-center gap-4">
+          <div className="p-3.5 bg-purple-500/10 text-purple-600 rounded-2xl">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold text-[#737373] uppercase">Users & Admins</p>
+            <p className="text-xl font-black text-[#242424]">{users.length}</p>
+            <p className="text-[10px] text-purple-600 font-bold">
+              {users.filter((u) => u.role === 'admin' || u.isSuperAdmin).length} admin(s)
+            </p>
           </div>
         </div>
       </div>
 
       {/* NAVIGATION TABS */}
-      <div className="flex items-center gap-2 border-b border-[#F1E4D8] pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#F1E4D8] pb-2">
         <button
           onClick={() => setActiveTab('orders')}
-          className={`px-6 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+          className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'orders'
               ? 'bg-[#E8483F] text-white shadow-md'
               : 'bg-white text-[#737373] hover:bg-[#FFF9F2] border border-[#F1E4D8]'
@@ -177,7 +257,7 @@ function AdminDashboardContent() {
 
         <button
           onClick={() => setActiveTab('products')}
-          className={`px-6 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+          className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'products'
               ? 'bg-[#E8483F] text-white shadow-md'
               : 'bg-white text-[#737373] hover:bg-[#FFF9F2] border border-[#F1E4D8]'
@@ -188,13 +268,26 @@ function AdminDashboardContent() {
 
         <button
           onClick={() => setActiveTab('messages')}
-          className={`px-6 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+          className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'messages'
               ? 'bg-[#E8483F] text-white shadow-md'
               : 'bg-white text-[#737373] hover:bg-[#FFF9F2] border border-[#F1E4D8]'
           }`}
         >
+          <Mail className="w-3.5 h-3.5" />
           Customer Messages ({messages.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'users'
+              ? 'bg-[#E8483F] text-white shadow-md'
+              : 'bg-white text-[#737373] hover:bg-[#FFF9F2] border border-[#F1E4D8]'
+          }`}
+        >
+          <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+          Admin Roles & Users ({users.length})
         </button>
       </div>
 
@@ -366,9 +459,32 @@ function AdminDashboardContent() {
       {/* TAB 3: CONTACT MESSAGES */}
       {activeTab === 'messages' && (
         <div className="space-y-6">
-          <h2 className="text-xl font-black text-[#242424] tracking-tight">
-            Customer Inquiries & Feedback ({messages.length})
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#F1E4D8]">
+            <div>
+              <h2 className="text-xl font-black text-[#242424] tracking-tight">
+                Customer Inquiries & Feedback ({messages.length})
+              </h2>
+              <p className="text-xs text-[#737373] mt-0.5">
+                Every customer message is stored in the database and automatically dispatched to Super Admin email: <strong>ay8880625@gmail.com</strong>.
+              </p>
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Email Delivery to ay8880625@gmail.com Active</span>
+            </div>
+          </div>
+
+          {/* Email Notification Notice */}
+          <div className="bg-[#FFF9F2] border border-[#F1E4D8] rounded-2xl p-4 text-xs flex items-start gap-3">
+            <Mail className="w-5 h-5 text-[#E8483F] shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-[#242424]">Direct Mail Dispatch Confirmation</p>
+              <p className="text-[#737373]">
+                When any customer submits an inquiry on the Contact page, it is recorded here for all administrators and simultaneously routed to your personal mailbox (<strong>ay8880625@gmail.com</strong>).
+              </p>
+            </div>
+          </div>
 
           {messages.length === 0 ? (
             <div className="p-12 text-center bg-white rounded-3xl border border-[#F1E4D8]">
@@ -379,22 +495,244 @@ function AdminDashboardContent() {
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className="bg-white rounded-2xl border border-[#F1E4D8] p-6 shadow-xs space-y-2"
+                  className={`bg-white rounded-2xl border p-6 shadow-xs space-y-3 transition-all ${
+                    m.read ? 'border-[#F1E4D8] opacity-85' : 'border-amber-300 shadow-sm'
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-sm text-[#242424]">{m.name}</h4>
-                      <p className="text-xs text-[#737373]">{m.email}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#E8483F]/10 text-[#E8483F] font-bold text-xs flex items-center justify-center uppercase">
+                        {m.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-sm text-[#242424]">{m.name}</h4>
+                          {!m.read && (
+                            <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                              New / Unread
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#737373] font-mono">{m.email}</p>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-neutral-400">
-                      {new Date(m.createdAt).toLocaleDateString()}
-                    </span>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-neutral-400">
+                        {new Date(m.createdAt).toLocaleDateString()} at{' '}
+                        {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      {!m.read && (
+                        <button
+                          onClick={() => handleMarkMessageRead(m.id)}
+                          className="px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[10px] font-bold cursor-pointer"
+                        >
+                          Mark as Read
+                        </button>
+                      )}
+
+                      <a
+                        href={`mailto:${m.email}?subject=Food%20Mart%20Support:%20Reply%20to%20your%20inquiry`}
+                        className="px-3 py-1.5 rounded-xl bg-[#E8483F] hover:bg-[#C93630] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        Reply via Email
+                      </a>
+                    </div>
                   </div>
-                  <p className="text-xs text-[#242424] pt-2 border-t border-[#F1E4D8]">
-                    &ldquo;{m.message}&rdquo;
-                  </p>
+
+                  <div className="bg-[#FFFDF9] rounded-xl p-3 border border-[#F1E4D8]">
+                    <p className="text-xs text-[#242424] leading-relaxed italic">
+                      &ldquo;{m.message}&rdquo;
+                    </p>
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: ADMIN ROLES & USER MANAGEMENT */}
+      {activeTab === 'users' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#F1E4D8]">
+            <div>
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-500 fill-amber-500" />
+                <h2 className="text-xl font-black text-[#242424] tracking-tight">
+                  User Accounts & Store Admin Privileges
+                </h2>
+              </div>
+              <p className="text-xs text-[#737373] mt-1">
+                Only <strong className="text-[#242424]">ay8880625@gmail.com</strong> (Super Admin) is authorized to promote registered users to Admin or revoke permissions. All standard signups default strictly to Customer status.
+              </p>
+            </div>
+
+            {/* Live Search */}
+            <div className="relative min-w-[260px]">
+              <input
+                type="text"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Search user name or email..."
+                className="w-full pl-9 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E8483F] focus:bg-white text-[#242424]"
+              />
+              <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Feedback banner */}
+          {roleActionStatus && (
+            <div
+              className={`p-4 rounded-2xl text-xs flex items-center gap-3 border ${
+                roleActionStatus.isError
+                  ? 'bg-red-50 text-red-700 border-red-200'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}
+            >
+              {roleActionStatus.isError ? (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              )}
+              <span>{roleActionStatus.message}</span>
+            </div>
+          )}
+
+          {/* Info Card explaining Super Admin rules */}
+          <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
+            <Crown className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold">Super Admin Role Guarantee</p>
+              <p className="text-amber-800">
+                • <strong>ay8880625@gmail.com</strong> is hardcoded and enforced on both server and database levels as the exclusive Super Admin.
+                <br />
+                • Any other email registering or signing in is automatically restricted to a Customer account unless explicitly promoted by you below.
+              </p>
+            </div>
+          </div>
+
+          {/* Users Table / List */}
+          {filteredUsers.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-[#F1E4D8]">
+              <p className="text-sm font-bold text-[#242424]">No registered users found matching your search.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-[#F1E4D8] overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#FFF9F2] text-[#737373] uppercase font-bold border-b border-[#F1E4D8]">
+                    <tr>
+                      <th className="py-3.5 px-4 sm:px-6">User</th>
+                      <th className="py-3.5 px-4">Role</th>
+                      <th className="py-3.5 px-4">Total Orders</th>
+                      <th className="py-3.5 px-4">Joined Date</th>
+                      <th className="py-3.5 px-4 text-right pr-6">Admin Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F1E4D8]">
+                    {filteredUsers.map((u) => {
+                      const isTargetSuperAdmin = u.isSuperAdmin || u.email.toLowerCase() === 'ay8880625@gmail.com';
+                      return (
+                        <tr key={u.id} className="hover:bg-neutral-50/50 transition-colors">
+                          <td className="py-4 px-4 sm:px-6">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs uppercase shrink-0 ${
+                                  isTargetSuperAdmin
+                                    ? 'bg-amber-400 text-neutral-900 shadow-sm'
+                                    : u.role === 'admin'
+                                    ? 'bg-[#E8483F] text-white'
+                                    : 'bg-neutral-200 text-neutral-700'
+                                }`}
+                              >
+                                {u.name ? u.name.charAt(0) : 'U'}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-[#242424] truncate flex items-center gap-1.5">
+                                  {u.name}
+                                  {isTargetSuperAdmin && (
+                                    <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                                  )}
+                                </p>
+                                <p className="text-[11px] text-[#737373] font-mono truncate">{u.email}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-4 px-4">
+                            {isTargetSuperAdmin ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                                <Crown className="w-3 h-3 text-amber-600 fill-amber-600" />
+                                Super Admin
+                              </span>
+                            ) : u.role === 'admin' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-red-100 text-[#E8483F] border border-red-200">
+                                <ShieldCheck className="w-3 h-3 text-[#E8483F]" />
+                                Store Admin
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-neutral-100 text-neutral-600">
+                                Customer
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-4 font-bold text-[#242424]">
+                            {u.ordersCount} orders
+                          </td>
+
+                          <td className="py-4 px-4 text-[#737373] text-[11px]">
+                            {new Date(u.createdAt).toLocaleDateString()}
+                          </td>
+
+                          <td className="py-4 px-4 text-right pr-6">
+                            {isTargetSuperAdmin ? (
+                              <span className="text-[11px] text-amber-700 font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+                                Master Account
+                              </span>
+                            ) : isSuperAdmin ? (
+                              u.role === 'admin' ? (
+                                <button
+                                  onClick={() => handleToggleUserRole(u)}
+                                  disabled={updatingUserId === u.id}
+                                  className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold transition-all flex items-center gap-1.5 ml-auto cursor-pointer disabled:opacity-50"
+                                >
+                                  {updatingUserId === u.id ? (
+                                    <span className="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <UserX className="w-3.5 h-3.5" />
+                                  )}
+                                  Demote to Customer
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleUserRole(u)}
+                                  disabled={updatingUserId === u.id}
+                                  className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ml-auto cursor-pointer disabled:opacity-50"
+                                >
+                                  {updatingUserId === u.id ? (
+                                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <UserCheck className="w-3.5 h-3.5" />
+                                  )}
+                                  Allow as Admin
+                                </button>
+                              )
+                            ) : (
+                              <span className="text-[11px] text-neutral-400 italic">
+                                Super Admin Only
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

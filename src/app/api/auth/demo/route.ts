@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword, signToken, COOKIE_NAME, ADMIN_EMAIL } from '@/lib/auth';
+import { hashPassword, signToken, COOKIE_NAME, SUPER_ADMIN_EMAIL, UserRole } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
     const { asAdmin } = await req.json().catch(() => ({ asAdmin: false }));
 
-    const targetEmail = asAdmin ? ADMIN_EMAIL : 'demo@foodmart.com';
-    const targetName = asAdmin ? 'FOOD MART Owner' : 'Janger Customer';
-    const targetRole = asAdmin ? 'admin' : 'customer';
+    const targetEmail = asAdmin ? SUPER_ADMIN_EMAIL : 'demo@foodmart.com';
+    const targetName = asAdmin ? 'FOOD MART Super Admin' : 'FoodMart Customer';
+    const targetRole: UserRole = asAdmin ? 'super_admin' : 'customer';
 
     let user = await prisma.user.findUnique({
       where: { email: targetEmail.toLowerCase() },
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const token = await signToken({
       userId: user.id,
       email: user.email,
-      role: user.role as 'customer' | 'admin',
+      role: targetRole,
       name: user.name,
     });
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword, signToken, COOKIE_NAME, ADMIN_EMAIL } from '@/lib/auth';
+import { hashPassword, signToken, COOKIE_NAME, isSuperAdmin, UserRole } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
     }
 
     const hashedPassword = await hashPassword(password || 'foodmart123');
-    const role = trimmedEmail === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer';
+    // ONLY ay8880625@gmail.com can be super_admin.
+    // ANY other email signs up strictly as a customer!
+    const role: UserRole = isSuperAdmin(trimmedEmail) ? 'super_admin' : 'customer';
 
     const user = await prisma.user.create({
       data: {
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     const token = await signToken({
       userId: user.id,
       email: user.email,
-      role: user.role as 'customer' | 'admin',
+      role: user.role as UserRole,
       name: user.name,
     });
 

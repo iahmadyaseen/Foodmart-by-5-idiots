@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, signToken, COOKIE_NAME } from '@/lib/auth';
+import { verifyPassword, signToken, COOKIE_NAME, isSuperAdmin, UserRole } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const trimmedEmail = email.toLowerCase().trim();
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: trimmedEmail },
     });
 
@@ -26,17 +26,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Update lastLoginAt
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    // Determine strict role:
+    // ONLY ay8880625@gmail.com is ever super_admin.
+    // Any other user can only be admin if granted by super admin; otherwise customer.
+    let effectiveRole: UserRole = user.role as UserRole;
+    if (isSuperAdmin(user.email)) {
+      effectiveRole = 'super_admin';
+    } else if (effectiveRole === 'super_admin') {
+      effectiveRole = 'customer';
+    } else if (effectiveRole !== 'admin') {
+      effectiveRole = 'customer';
+    }
+
+    // Update lastLoginAt and ensure role is synchronized in database
+    if (user.role !== effectiveRole) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: effectiveRole, lastLoginAt: new Date() },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+    }
 
     // Create session token
     const token = await signToken({
       userId: user.id,
       email: user.email,
-      role: user.role as 'customer' | 'admin',
+      role: effectiveRole,
       name: user.name,
     });
 
@@ -47,7 +66,7 @@ export async function POST(req: NextRequest) {
       success: true,
       user: {
         ...safeUser,
-        role: user.role,
+        role: effectiveRole,
       },
       token,
     });

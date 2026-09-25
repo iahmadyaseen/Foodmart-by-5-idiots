@@ -17,11 +17,12 @@ import {
   ShieldCheck,
   PackageCheck,
   ChevronDown,
+  Crown,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { totalItemsCount } = useCart();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isSuperAdmin, logout } = useAuth();
   const { products } = useProducts();
   const router = useRouter();
   const pathname = usePathname();
@@ -204,11 +205,16 @@ export const Navbar: React.FC = () => {
                     <div className="px-4 py-2 border-b border-neutral-100">
                       <p className="text-sm font-bold text-[#242424] truncate">{user.name}</p>
                       <p className="text-xs text-[#737373] truncate">{user.email}</p>
-                      {isAdmin && (
+                      {isSuperAdmin ? (
+                        <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
+                          <Crown className="w-3 h-3 text-amber-600 fill-amber-600" />
+                          Super Admin
+                        </span>
+                      ) : isAdmin ? (
                         <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#E8483F]/10 text-[#E8483F] uppercase tracking-wider">
                           Administrator
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="py-1">
@@ -218,8 +224,12 @@ export const Navbar: React.FC = () => {
                           onClick={() => setUserDropdownOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-sm text-[#242424] hover:bg-[#E8483F]/10 hover:text-[#E8483F] font-bold"
                         >
-                          <ShieldCheck className="w-4 h-4 text-[#E8483F]" />
-                          Admin Dashboard
+                          {isSuperAdmin ? (
+                            <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
+                          ) : (
+                            <ShieldCheck className="w-4 h-4 text-[#E8483F]" />
+                          )}
+                          {isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}
                         </Link>
                       )}
 
@@ -323,8 +333,12 @@ export const Navbar: React.FC = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className="px-4 py-2.5 rounded-xl text-base font-bold text-[#E8483F] bg-[#E8483F]/10 flex items-center gap-2 mt-2"
                 >
-                  <ShieldCheck className="w-5 h-5" />
-                  Admin Dashboard
+                  {isSuperAdmin ? (
+                    <Crown className="w-5 h-5 text-amber-500 fill-amber-500" />
+                  ) : (
+                    <ShieldCheck className="w-5 h-5" />
+                  )}
+                  {isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}
                 </Link>
               )}
             </nav>

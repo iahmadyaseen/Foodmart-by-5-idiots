@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, isSuperAdmin } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
@@ -19,9 +19,10 @@ export async function GET(
     }
 
     const session = await getSessionUser(req);
-    // If order has an owner, verify caller is owner or admin
+    // If order has an owner, verify caller is owner, admin or super_admin
     if (order.userId && order.userId !== 'guest-user') {
-      if (!session || (session.userId !== order.userId && session.role !== 'admin')) {
+      const isCallerAdmin = session && (session.role === 'admin' || session.role === 'super_admin' || isSuperAdmin(session.email));
+      if (!session || (session.userId !== order.userId && !isCallerAdmin)) {
         // Prevent unauthorized customer from inspecting other customers' orders!
         return NextResponse.json({ error: 'Forbidden: Access denied to this order' }, { status: 403 });
       }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin, ADMIN_EMAIL } from '@/lib/auth';
+import { requireAdmin, SUPER_ADMIN_EMAIL } from '@/lib/auth';
+import { sendInquiryToSuperAdmin } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(`[FOOD MART OWNER NOTIFICATION] Inbound Inquiry to ${ADMIN_EMAIL}:\nName: ${name}\nEmail: ${email}\nMessage: ${message}`);
+    // Send email notification to Super Admin (ay8880625@gmail.com)
+    await sendInquiryToSuperAdmin({
+      name: newMessage.name,
+      email: newMessage.email,
+      message: newMessage.message,
+      createdAt: newMessage.createdAt,
+    });
 
     return NextResponse.json({
       success: true,

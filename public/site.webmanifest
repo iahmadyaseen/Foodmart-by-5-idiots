@@ -1,0 +1,20 @@
+{
+  "name": "FOOD MART - Fresh Groceries",
+  "short_name": "FoodMart",
+  "description": "Farm-fresh organic groceries and household essentials delivered with care.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#E8483F",
+  "background_color": "#FFF9F2",
+  "display": "standalone"
+}

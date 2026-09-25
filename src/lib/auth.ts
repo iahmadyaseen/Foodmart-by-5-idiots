@@ -8,13 +8,21 @@ const JWT_SECRET_STRING = process.env.JWT_SECRET || 'foodmart_default_super_secr
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 export const COOKIE_NAME = 'foodmart_auth_token';
 
-export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ay8880625@gmail.com';
+export const SUPER_ADMIN_EMAIL = 'ay8880625@gmail.com';
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || SUPER_ADMIN_EMAIL;
+
+export type UserRole = 'customer' | 'admin' | 'super_admin';
 
 export interface TokenPayload {
   userId: string;
   email: string;
-  role: 'customer' | 'admin';
+  role: UserRole;
   name: string;
+}
+
+export function isSuperAdmin(email?: string | null): boolean {
+  if (!email) return false;
+  return email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -71,12 +79,26 @@ export async function getSessionUser(req?: NextRequest): Promise<TokenPayload | 
 }
 
 /**
- * Helper to ensure the current session is an admin. Throws or returns null if not.
+ * Helper to ensure the current session is an admin or super admin. Returns null if not.
  */
 export async function requireAdmin(req?: NextRequest): Promise<TokenPayload | null> {
   const user = await getSessionUser(req);
-  if (!user || user.role !== 'admin') {
-    return null;
+  if (!user) return null;
+  if (isSuperAdmin(user.email) || user.role === 'admin' || user.role === 'super_admin') {
+    return user;
   }
-  return user;
+  return null;
+}
+
+/**
+ * Helper to ensure the current session is strictly the Super Admin (ay8880625@gmail.com).
+ * Returns null if not.
+ */
+export async function requireSuperAdmin(req?: NextRequest): Promise<TokenPayload | null> {
+  const user = await getSessionUser(req);
+  if (!user) return null;
+  if (isSuperAdmin(user.email)) {
+    return user;
+  }
+  return null;
 }
