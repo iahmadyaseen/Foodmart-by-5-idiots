@@ -48,6 +48,32 @@ export const prisma = new Proxy({} as PrismaClient, {
       };
     }
 
+    if (prop === '$transaction') {
+      return async function (arg: any) {
+        if (realClient) {
+          try {
+            return await (realClient as any).$transaction(arg);
+          } catch (err: any) {
+            console.warn('[Prisma] $transaction failed on realClient, fallback to localDb:', err?.message);
+            if (typeof arg === 'function') {
+              return await arg(localDb);
+            }
+          }
+        }
+        if (typeof arg === 'function') {
+          return await arg(localDb);
+        }
+        if (Array.isArray(arg)) {
+          const results = [];
+          for (const item of arg) {
+            results.push(await item);
+          }
+          return results;
+        }
+        return null;
+      };
+    }
+
     const localModel = (localDb as any)[prop];
     const realModel = realClient ? (realClient as any)[prop] : null;
 

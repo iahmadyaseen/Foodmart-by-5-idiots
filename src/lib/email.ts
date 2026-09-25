@@ -13,17 +13,30 @@ interface CustomerInquiryEmailParams {
  * Supports Gmail App Passwords, Custom SMTP, or falls back to logger.
  */
 function createTransporter() {
-  const host = process.env.SMTP_HOST || (process.env.GMAIL_USER ? 'smtp.gmail.com' : undefined);
+  const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || (host === 'smtp.gmail.com' ? 465 : 587));
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  let pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').trim();
+  
+  // Strip any spaces (Google App Passwords are often generated as 'xxxx xxxx xxxx xxxx')
+  pass = pass.replace(/\s+/g, '');
 
   if (user && pass) {
+    // If using Gmail without custom SMTP host, use nodemailer's dedicated 'gmail' service
+    if (!host && (user.toLowerCase().includes('@gmail.com') || process.env.GMAIL_USER)) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user,
+          pass,
+        },
+      });
+    }
+
     return nodemailer.createTransport({
-      host,
+      host: host || 'smtp.gmail.com',
       port,
-      secure,
+      secure: process.env.SMTP_SECURE === 'true' || port === 465,
       auth: {
         user,
         pass,
@@ -156,9 +169,13 @@ export async function sendInquiryToSuperAdmin(params: CustomerInquiryEmailParams
     };
   } catch (err: any) {
     console.error(`❌ [FOOD MART EMAIL ERROR] Failed to send email to ${SUPER_ADMIN_EMAIL}:`, err?.message || err);
+    let note = err?.message || 'SMTP delivery failed';
+    if (note.includes('BadCredentials') || note.includes('535') || note.includes('Username and Password not accepted')) {
+      note = 'Gmail login rejected password. Please generate a 16-character Google App Password from https://myaccount.google.com/apppasswords and set GMAIL_APP_PASSWORD in .env';
+    }
     return {
       success: false,
-      note: err?.message || 'SMTP delivery failed',
+      note,
     };
   }
 }
@@ -254,4 +271,100 @@ export async function sendPasswordResetEmail(params: PasswordResetEmailParams): 
     return { success: false, note: err?.message };
   }
 }
+
+/**
+ * Diagnostics helper: Inspects current email configuration
+ */
+export function getEmailConfigStatus() {
+  const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+  const isConfigured = Boolean(user && pass);
+  const isLikelyPlaceholder = pass === '123456' || (pass.length > 0 && pass.length < 16 && (user.includes('@gmail.com') || process.env.GMAIL_USER));
+
+  return {
+    configured: isConfigured,
+    user: user || null,
+    targetRecipient: SUPER_ADMIN_EMAIL,
+    isLikelyPlaceholder,
+    provider: process.env.SMTP_HOST ? 'Custom SMTP' : 'Gmail SMTP',
+    helpNote: isLikelyPlaceholder
+      ? 'GMAIL_APP_PASSWORD appears to be a placeholder ("123456"). Google requires a 16-character App Password generated from https://myaccount.google.com/apppasswords'
+      : isConfigured
+      ? 'Configured and ready.'
+      : 'No credentials configured in .env',
+  };
+}
+
+/**
+ * Sends a real test notification to Super Admin ay8880625@gmail.com
+ */
+export async function sendTestEmailToSuperAdmin(): Promise<{
+  success: boolean;
+  messageId?: string;
+  note?: string;
+}> {
+  const transporter = createTransporter();
+  const pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+
+  if (!transporter) {
+    return {
+      success: false,
+      note: 'No email credentials configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD in .env',
+    };
+  }
+
+  if (pass === '123456' || (pass.length > 0 && pass.length < 16 && process.env.GMAIL_USER)) {
+    return {
+      success: false,
+      note: 'GMAIL_APP_PASSWORD is set to "' + pass + '". Gmail requires a 16-character App Password from Google Account Security (https://myaccount.google.com/apppasswords).',
+    };
+  }
+
+  try {
+    const fromAddress =
+      process.env.EMAIL_FROM ||
+      (process.env.GMAIL_USER ? `Food Mart System <${process.env.GMAIL_USER}>` : `Food Mart <${SUPER_ADMIN_EMAIL}>`);
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to: SUPER_ADMIN_EMAIL,
+      subject: '✅ [Food Mart] SMTP Email Relay Connected Successfully!',
+      text: `Hello Super Admin,\n\nYour Food Mart email notification system is connected and working! Customer inquiries will be delivered directly here (${SUPER_ADMIN_EMAIL}).`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FFF9F2; padding: 30px; color: #242424;">
+          <div style="max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 20px; padding: 30px; border: 1px solid #F1E4D8; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center;">
+            <div style="display: inline-block; background: #10B981; color: white; padding: 12px 20px; border-radius: 999px; font-weight: bold; font-size: 14px; margin-bottom: 16px;">
+              ✓ SMTP Relay Verified Active
+            </div>
+            <h1 style="color: #242424; font-size: 22px; margin: 0 0 10px 0;">Food Mart Email System Active!</h1>
+            <p style="color: #737373; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+              This test message confirms that customer inquiries submitted on the <strong>Contact Us</strong> page will be instantly forwarded to your personal email inbox: <strong>${SUPER_ADMIN_EMAIL}</strong>.
+            </p>
+            <div style="background: #FFF4E8; border-radius: 12px; padding: 16px; font-size: 12px; color: #E8483F; font-weight: bold;">
+              Destination: ${SUPER_ADMIN_EMAIL}
+            </div>
+          </div>
+        </div>
+      `,
+    });
+
+    console.log(`✅ [TEST EMAIL SENT] Delivered to ${SUPER_ADMIN_EMAIL}. ID: ${info.messageId}`);
+    return {
+      success: true,
+      messageId: info.messageId,
+      note: `Test email successfully delivered to ${SUPER_ADMIN_EMAIL}`,
+    };
+  } catch (err: any) {
+    console.error('Test email dispatch error:', err);
+    let note = err?.message || 'SMTP delivery failed';
+    if (note.includes('BadCredentials') || note.includes('535') || note.includes('Username and Password not accepted')) {
+      note = 'Gmail rejected login credentials. Please ensure 2-Step Verification is active on your Google account and generate a 16-character App Password at https://myaccount.google.com/apppasswords';
+    }
+    return {
+      success: false,
+      note,
+    };
+  }
+}
+
 

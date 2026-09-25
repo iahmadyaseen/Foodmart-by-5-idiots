@@ -24,9 +24,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (!loading) {
       if (!user) {
         router.push(`/login?from=${encodeURIComponent(pathname)}`);
-      } else if (requireSuperAdmin && !isSuperAdmin) {
-        router.push('/admin');
       } else if (requireAdmin && !isAdmin) {
+        router.push('/');
+      } else if (requireSuperAdmin && !isSuperAdmin) {
         router.push('/');
       }
     }

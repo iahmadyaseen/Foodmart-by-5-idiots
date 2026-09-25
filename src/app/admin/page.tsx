@@ -44,6 +44,25 @@ function AdminDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [roleActionStatus, setRoleActionStatus] = useState<{ message: string; isError?: boolean } | null>(null);
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{
+    success?: boolean;
+    note?: string;
+  } | null>(null);
+
+  const handleSendTestEmail = async () => {
+    setTestEmailLoading(true);
+    setTestEmailResult(null);
+    try {
+      const res = await fetch('/api/admin/test-email', { method: 'POST' });
+      const data = await res.json();
+      setTestEmailResult(data);
+    } catch {
+      setTestEmailResult({ success: false, note: 'Failed to contact test email service.' });
+    } finally {
+      setTestEmailLoading(false);
+    }
+  };
 
   // New product form modal state
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -469,17 +488,61 @@ function AdminDashboardContent() {
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Email Delivery to ay8880625@gmail.com Active</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSendTestEmail}
+                disabled={testEmailLoading}
+                className="px-4 py-2 rounded-xl bg-[#E8483F] hover:bg-[#C93630] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {testEmailLoading ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                Send Test Email to ay8880625@gmail.com
+              </button>
             </div>
           </div>
 
-          {/* Email Notification Notice */}
+          {/* Test Email Result Banner */}
+          {testEmailResult && (
+            <div
+              className={`p-4 rounded-2xl text-xs flex items-start gap-3 border animate-in fade-in ${
+                testEmailResult.success
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-amber-50 text-amber-900 border-amber-200'
+              }`}
+            >
+              {testEmailResult.success ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-1">
+                <p className="font-bold">
+                  {testEmailResult.success
+                    ? 'Test Email Successfully Delivered!'
+                    : 'Gmail SMTP Authentication Notice'}
+                </p>
+                <p className="leading-relaxed">{testEmailResult.note}</p>
+                {!testEmailResult.success && (
+                  <div className="pt-2 text-[11px] text-neutral-700 space-y-1">
+                    <p className="font-bold text-[#242424]">How to enable Gmail delivery in 2 quick steps:</p>
+                    <ol className="list-decimal pl-4 space-y-0.5">
+                      <li>Go to your Google Account Security: <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-[#E8483F] underline font-bold">https://myaccount.google.com/apppasswords</a></li>
+                      <li>Generate a 16-character App Password (name it "FoodMart") and paste it in <code className="bg-white px-1 py-0.5 rounded border border-neutral-300 font-mono">.env</code> as <code className="bg-white px-1 py-0.5 rounded border border-neutral-300 font-mono">GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"</code>.</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Email Notification Architecture Notice */}
           <div className="bg-[#FFF9F2] border border-[#F1E4D8] rounded-2xl p-4 text-xs flex items-start gap-3">
             <Mail className="w-5 h-5 text-[#E8483F] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-bold text-[#242424]">Direct Mail Dispatch Confirmation</p>
+              <p className="font-bold text-[#242424]">Direct Mail Dispatch System</p>
               <p className="text-[#737373]">
                 When any customer submits an inquiry on the Contact page, it is recorded here for all administrators and simultaneously routed to your personal mailbox (<strong>ay8880625@gmail.com</strong>).
               </p>

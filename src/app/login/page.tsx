@@ -9,9 +9,7 @@ import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import {
   Mail,
   Lock,
-  UserCheck,
   AlertCircle,
-  Crown,
   KeyRound,
   X,
   CheckCircle2,
@@ -20,7 +18,7 @@ import {
 } from 'lucide-react';
 
 function LoginContent() {
-  const { login, demoLogin } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get('from') || '/';
@@ -66,32 +64,6 @@ function LoginContent() {
       }
     } catch (err: any) {
       setError(err?.message || 'An error occurred during authentication.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoCustomer = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await demoLogin(false);
-      router.push(from);
-    } catch (err: any) {
-      setError(err?.message || 'Demo login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoAdmin = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await demoLogin(true);
-      router.push('/admin');
-    } catch (err: any) {
-      setError(err?.message || 'Admin login failed');
     } finally {
       setLoading(false);
     }
@@ -195,32 +167,6 @@ function LoginContent() {
           </div>
         )}
 
-        {/* Quick Demo Login Buttons */}
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
-          <p className="text-[11px] font-bold uppercase text-amber-900">
-            One-Click Instant Demo Login:
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleDemoCustomer}
-              className="py-2 px-3 rounded-xl bg-white border border-amber-300 text-[#242424] text-xs font-bold shadow-xs hover:scale-102 transition-transform flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Customer
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDemoAdmin}
-              className="py-2 px-3 rounded-xl bg-amber-500 text-white text-xs font-bold shadow-xs hover:scale-102 transition-transform flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Crown className="w-3.5 h-3.5 text-yellow-200 fill-yellow-200" />
-              Super Admin
-            </button>
-          </div>
-        </div>
-
         {/* Google Identity Sign-In */}
         <GoogleSignInButton redirectTo={from} />
 
@@ -245,7 +191,7 @@ function LoginContent() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white text-[#242424] font-bold text-sm border-2 border-neutral-300 focus:border-[#E8483F] focus:outline-none placeholder:text-neutral-400"
-                placeholder="customer@example.com or ay8880625@gmail.com"
+                placeholder="Enter your email"
               />
               <Mail className="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             </div>

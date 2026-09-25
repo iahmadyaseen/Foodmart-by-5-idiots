@@ -2,9 +2,13 @@ import { ContactMessage } from '../types';
 
 export const contactService = {
   /**
-   * Submit contact message to Prisma database
+   * Submit contact message to Prisma database and trigger Super Admin email
    */
-  async sendMessage(name: string, email: string, message: string): Promise<ContactMessage> {
+  async sendMessage(
+    name: string,
+    email: string,
+    message: string
+  ): Promise<{ message: ContactMessage; emailDispatched?: boolean; emailNote?: string }> {
     const res = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -17,7 +21,11 @@ export const contactService = {
     }
 
     const data = await res.json();
-    return data.message;
+    return {
+      message: data.message,
+      emailDispatched: data.emailDispatched,
+      emailNote: data.emailNote,
+    };
   },
 
   /**

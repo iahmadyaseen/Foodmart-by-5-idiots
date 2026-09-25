@@ -16,6 +16,7 @@ interface AuthContextType {
   demoLogin: (asAdmin?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   updateProfileData: (data: Partial<UserProfile>) => Promise<void>;
+  setAuthenticatedUser: (profile: UserProfile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,19 +50,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
+            // Strictly enforce: only ay8880625@gmail.com is super_admin
+            const isTargetSuper = data.user.email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase().trim();
             const formatted: UserProfile = {
               userId: data.user.id,
               name: data.user.name,
               email: data.user.email,
               photoURL: data.user.photoURL || undefined,
-              role: data.user.role as UserRole,
+              role: isTargetSuper ? 'super_admin' : 'customer',
               createdAt: data.user.createdAt,
               lastLoginAt: data.user.lastLoginAt,
             };
             saveUserToState(formatted);
           } else {
-            // Keep cached user if offline or fallback
+            // No active session on server -> clear any stale cached user
+            saveUserToState(null);
           }
+        } else {
+          saveUserToState(null);
         }
       } catch (err) {
         console.warn('Session check warning:', err);
@@ -207,8 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isSuperAdmin = user?.role === 'super_admin' || user?.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
-  const isAdmin = isSuperAdmin || user?.role === 'admin';
+  const isSuperAdmin = Boolean(
+    user && user.email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase().trim()
+  );
+  const isAdmin = isSuperAdmin;
 
   return (
     <AuthContext.Provider
@@ -222,6 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         demoLogin,
         logout,
         updateProfileData,
+        setAuthenticatedUser: saveUserToState,
       }}
     >
       {children}

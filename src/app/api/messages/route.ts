@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Send email notification to Super Admin (ay8880625@gmail.com)
-    await sendInquiryToSuperAdmin({
+    const emailResult = await sendInquiryToSuperAdmin({
       name: newMessage.name,
       email: newMessage.email,
       message: newMessage.message,
@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      emailDispatched: emailResult.success,
+      emailNote: emailResult.note,
       message: {
         id: newMessage.id,
         name: newMessage.name,

@@ -341,6 +341,55 @@ export const Navbar: React.FC = () => {
                   {isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}
                 </Link>
               )}
+
+              {user ? (
+                <div className="pt-2 border-t border-neutral-200/80 flex flex-col gap-1">
+                  <Link
+                    href="/orders"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2.5 rounded-xl text-sm font-bold text-[#242424] hover:bg-neutral-100 flex items-center gap-2"
+                  >
+                    <PackageCheck className="w-4 h-4 text-neutral-500" />
+                    My Orders History
+                  </Link>
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2.5 rounded-xl text-sm font-bold text-[#242424] hover:bg-neutral-100 flex items-center gap-2"
+                  >
+                    <UserIcon className="w-4 h-4 text-neutral-500" />
+                    My Profile
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      setMobileMenuOpen(false);
+                      await logout();
+                      router.push('/');
+                    }}
+                    className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 text-left rounded-xl"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Log Out
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-3 border-t border-neutral-200/80 flex items-center gap-2 px-2">
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 text-center py-2 text-xs font-bold text-[#242424] bg-white border border-neutral-300 rounded-xl hover:bg-[#FFF9F2]"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/signup"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 text-center py-2 text-xs font-bold text-white bg-[#E8483F] rounded-xl hover:bg-[#C93630]"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
             </nav>
           </div>
         )}

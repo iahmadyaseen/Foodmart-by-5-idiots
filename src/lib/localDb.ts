@@ -145,6 +145,20 @@ class LocalDatabase {
     }
   }
 
+  $transaction = async (arg: any) => {
+    if (typeof arg === 'function') {
+      return await arg(this);
+    }
+    if (Array.isArray(arg)) {
+      const results = [];
+      for (const item of arg) {
+        results.push(await item);
+      }
+      return results;
+    }
+    return null;
+  };
+
   // --- USER OPERATIONS ---
   readonly user = {
     findUnique: async ({ where }: { where: { email?: string; id?: string } }) => {
@@ -304,8 +318,19 @@ class LocalDatabase {
     findMany: async (args?: any) => {
       this.data = this.load();
       let res = [...this.data.orders];
-      if (args?.where?.userId) {
-        res = res.filter((o) => o.userId === args.where.userId);
+      if (args?.where) {
+        if (args.where.userId && !args.where.OR) {
+          res = res.filter((o) => o.userId === args.where.userId);
+        } else if (args.where.OR && Array.isArray(args.where.OR)) {
+          res = res.filter((o) => {
+            return args.where.OR.some((cond: any) => {
+              if (cond.userId && o.userId === cond.userId) return true;
+              const targetEmail = cond.customerEmail?.equals || cond.customerEmail;
+              if (targetEmail && o.customerEmail?.toLowerCase() === targetEmail.toLowerCase()) return true;
+              return false;
+            });
+          });
+        }
       }
       return res.reverse().map((o) => ({
         ...o,

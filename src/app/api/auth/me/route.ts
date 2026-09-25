@@ -23,24 +23,12 @@ export async function GET(req: NextRequest) {
     });
 
     if (user) {
-      if (isSuperAdmin(user.email) && user.role !== 'super_admin') {
+      const isTargetSuper = isSuperAdmin(user.email);
+      const expectedRole = isTargetSuper ? 'super_admin' : 'customer';
+      if (user.role !== expectedRole) {
         user = await prisma.user.update({
           where: { id: user.id },
-          data: { role: 'super_admin' },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            photoURL: true,
-            createdAt: true,
-            lastLoginAt: true,
-          },
-        });
-      } else if (!isSuperAdmin(user.email) && user.role === 'super_admin') {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { role: 'customer' },
+          data: { role: expectedRole },
           select: {
             id: true,
             email: true,

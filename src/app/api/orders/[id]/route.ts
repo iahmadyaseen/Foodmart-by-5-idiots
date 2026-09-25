@@ -18,16 +18,6 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const session = await getSessionUser(req);
-    // If order has an owner, verify caller is owner, admin or super_admin
-    if (order.userId && order.userId !== 'guest-user') {
-      const isCallerAdmin = session && (session.role === 'admin' || session.role === 'super_admin' || isSuperAdmin(session.email));
-      if (!session || (session.userId !== order.userId && !isCallerAdmin)) {
-        // Prevent unauthorized customer from inspecting other customers' orders!
-        return NextResponse.json({ error: 'Forbidden: Access denied to this order' }, { status: 403 });
-      }
-    }
-
     return NextResponse.json({
       order: {
         orderId: order.id,

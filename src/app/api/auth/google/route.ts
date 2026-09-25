@@ -56,13 +56,8 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // User exists: update photoURL & lastLoginAt, enforce super_admin if ay8880625@gmail.com
-      let effectiveRole = user.role as UserRole;
-      if (isSuperAdmin(user.email)) {
-        effectiveRole = 'super_admin';
-      } else if (effectiveRole === 'super_admin') {
-        effectiveRole = 'customer';
-      }
+      // User exists: update photoURL & lastLoginAt, enforce: ONLY ay8880625@gmail.com is super_admin, all others are customer
+      const effectiveRole: UserRole = isSuperAdmin(user.email) ? 'super_admin' : 'customer';
 
       user = await prisma.user.update({
         where: { id: user.id },

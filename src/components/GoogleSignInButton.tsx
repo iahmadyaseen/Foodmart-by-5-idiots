@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
-import { Crown, User, X, Check } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface GoogleSignInButtonProps {
@@ -14,7 +14,7 @@ interface GoogleSignInButtonProps {
 
 export function GoogleSignInButton({ onSuccess, className = '', redirectTo }: GoogleSignInButtonProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { setAuthenticatedUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [customEmail, setCustomEmail] = useState('');
@@ -59,13 +59,23 @@ export function GoogleSignInButton({ onSuccess, className = '', redirectTo }: Go
 
       const data = await res.json();
       if (res.ok && data.success) {
+        if (data.user) {
+          setAuthenticatedUser({
+            userId: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            photoURL: data.user.photoURL || undefined,
+            role: data.user.role,
+            createdAt: data.user.createdAt,
+            lastLoginAt: data.user.lastLoginAt,
+          });
+        }
         if (onSuccess) onSuccess();
         if (redirectTo) {
           router.push(redirectTo);
         } else {
           router.push(data.user?.role === 'super_admin' ? '/admin' : '/');
         }
-        window.location.reload();
       }
     } catch (err) {
       console.error('Google Sign In error:', err);
@@ -81,16 +91,24 @@ export function GoogleSignInButton({ onSuccess, className = '', redirectTo }: Go
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
-          name,
-          photoURL: email.toLowerCase() === 'ay8880625@gmail.com'
-            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
-            : undefined,
+          email: email.trim(),
+          name: name.trim() || email.split('@')[0],
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
+        if (data.user) {
+          setAuthenticatedUser({
+            userId: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            photoURL: data.user.photoURL || undefined,
+            role: data.user.role,
+            createdAt: data.user.createdAt,
+            lastLoginAt: data.user.lastLoginAt,
+          });
+        }
         setShowModal(false);
         if (onSuccess) onSuccess();
         if (redirectTo) {
@@ -98,7 +116,6 @@ export function GoogleSignInButton({ onSuccess, className = '', redirectTo }: Go
         } else {
           router.push(data.user?.role === 'super_admin' ? '/admin' : '/');
         }
-        window.location.reload();
       }
     } catch (err) {
       console.error('Local Google Sign In error:', err);
@@ -201,66 +218,48 @@ export function GoogleSignInButton({ onSuccess, className = '', redirectTo }: Go
             </div>
 
             <p className="text-xs text-[#737373]">
-              Choose a Google account to sign in securely to Food Mart:
+              Enter your Google Account email to sign in:
             </p>
 
-            {/* Quick account choices */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleDirectGoogleLogin('ay8880625@gmail.com', 'FOOD MART Super Admin')}
-                className="w-full p-3 rounded-2xl bg-amber-50 hover:bg-amber-100/80 border border-amber-300 text-left transition-all flex items-center justify-between cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-400 text-neutral-900 font-bold text-xs flex items-center justify-center uppercase shrink-0 shadow-xs">
-                    <Crown className="w-4 h-4 fill-neutral-900" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-xs text-[#242424] flex items-center gap-1">
-                      ay8880625@gmail.com
-                      <span className="text-[9px] bg-amber-200 text-amber-900 font-extrabold px-1.5 py-0.2 rounded-full uppercase">
-                        Super Admin
-                      </span>
-                    </p>
-                    <p className="text-[10px] text-[#737373]">FOOD MART Owner Account</p>
-                  </div>
-                </div>
-              </button>
+            {/* Google Account Form */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-[#242424] uppercase mb-1">
+                  Google Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="your.email@gmail.com"
+                  value={customEmail}
+                  onChange={(e) => setCustomEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white text-sm font-bold border border-neutral-300 focus:border-[#E8483F] focus:outline-none placeholder:text-neutral-400"
+                />
+              </div>
 
-              <button
-                type="button"
-                onClick={() => handleDirectGoogleLogin('demo@foodmart.com', 'FoodMart Customer')}
-                className="w-full p-3 rounded-2xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-left transition-all flex items-center justify-between cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-neutral-200 text-neutral-700 font-bold text-xs flex items-center justify-center uppercase shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-xs text-[#242424]">demo@foodmart.com</p>
-                    <p className="text-[10px] text-[#737373]">Customer Account</p>
-                  </div>
-                </div>
-              </button>
-            </div>
+              <div>
+                <label className="block text-[11px] font-bold text-[#242424] uppercase mb-1">
+                  Display Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. John Doe"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white text-sm font-bold border border-neutral-300 focus:border-[#E8483F] focus:outline-none placeholder:text-neutral-400"
+                />
+              </div>
 
-            {/* Custom Google Account Form */}
-            <div className="pt-2 border-t border-neutral-100 space-y-2">
-              <p className="text-[11px] font-bold text-neutral-500 uppercase">Or any other Google Account:</p>
-              <input
-                type="email"
-                placeholder="your.google@gmail.com"
-                value={customEmail}
-                onChange={(e) => setCustomEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white text-xs font-bold border border-neutral-300 focus:border-[#E8483F] focus:outline-none"
-              />
               <button
                 type="button"
                 disabled={!customEmail.includes('@') || loading}
                 onClick={() => handleDirectGoogleLogin(customEmail, customName || customEmail.split('@')[0])}
-                className="w-full py-2 rounded-xl bg-[#242424] hover:bg-neutral-800 text-white font-bold text-xs disabled:opacity-50 transition-colors cursor-pointer"
+                className="w-full py-3 rounded-xl bg-[#E8483F] hover:bg-[#C93630] text-white font-bold text-sm disabled:opacity-50 transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
               >
-                Continue with {customEmail || 'this email'}
+                {loading ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span>Continue with Google</span>
+                )}
               </button>
             </div>
           </div>

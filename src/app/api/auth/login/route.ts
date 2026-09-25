@@ -27,16 +27,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine strict role:
-    // ONLY ay8880625@gmail.com is ever super_admin.
-    // Any other user can only be admin if granted by super admin; otherwise customer.
-    let effectiveRole: UserRole = user.role as UserRole;
-    if (isSuperAdmin(user.email)) {
-      effectiveRole = 'super_admin';
-    } else if (effectiveRole === 'super_admin') {
-      effectiveRole = 'customer';
-    } else if (effectiveRole !== 'admin') {
-      effectiveRole = 'customer';
-    }
+    // ONLY ay8880625@gmail.com is super_admin.
+    // ALL other users are strictly customers.
+    const effectiveRole: UserRole = isSuperAdmin(user.email) ? 'super_admin' : 'customer';
 
     // Update lastLoginAt and ensure role is synchronized in database
     if (user.role !== effectiveRole) {

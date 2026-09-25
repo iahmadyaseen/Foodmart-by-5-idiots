@@ -13,6 +13,10 @@ export default function ContactPage() {
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submissionFeedback, setSubmissionFeedback] = useState<{
+    emailDispatched?: boolean;
+    emailNote?: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,8 +30,9 @@ export default function ContactPage() {
     setError(null);
 
     try {
-      await contactService.sendMessage(formData.name, formData.email, formData.message);
+      const res = await contactService.sendMessage(formData.name, formData.email, formData.message);
       setSubmitted(true);
+      setSubmissionFeedback(res);
       setFormData({ name: '', email: '', message: '' });
     } catch (err) {
       console.error('Contact send error:', err);
@@ -101,9 +106,23 @@ export default function ContactPage() {
           </h2>
 
           {submitted && (
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 shrink-0" />
-              <span>Thank you! Your inquiry has been sent directly to store owner ay8880625@gmail.com.</span>
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm space-y-1.5 animate-in fade-in">
+              <div className="flex items-center gap-2 font-bold">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>Message Received & Stored Successfully!</span>
+              </div>
+              <p className="text-neutral-600 pl-7 text-xs">
+                Your message has been delivered to the Super Admin Dashboard.
+              </p>
+              {submissionFeedback?.emailDispatched ? (
+                <p className="text-emerald-700 pl-7 font-bold text-xs">
+                  ✓ Email notification successfully delivered to store owner (ay8880625@gmail.com).
+                </p>
+              ) : (
+                <div className="ml-7 mt-1 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                  <strong>SMTP Status:</strong> {submissionFeedback?.emailNote || 'Inquiry saved in Admin Dashboard. Configure Google App Password in .env to receive direct emails in your inbox.'}
+                </div>
+              )}
             </div>
           )}
 
